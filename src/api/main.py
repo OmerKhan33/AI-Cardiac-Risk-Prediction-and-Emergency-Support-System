@@ -1,10 +1,16 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from sqlmodel import Session
 import joblib
 import pandas as pd
 import numpy as np
 import os
 import json
 from src.config import settings
+from src.db.database import create_db_and_tables, get_session
+from src.models.user_model import User
+from src.models.prediction_model import Prediction
+from src.auth.security import get_current_user
+from src.api import auth_routes
 from src.api.schemas import PatientData, AssessmentResponse
 from src.utils.live_data import LiveDataClient
 from src.utils.bayesian_network import EnvironmentalBayesNet
@@ -13,11 +19,11 @@ from src.utils.recommender import HeartRecommender
 # Initialize App
 app = FastAPI(
     title=settings.APP_NAME, 
-    version=settings.VERSION,
-    description="AI Cardiac Risk System with Live Environmental Context"
+    version="1.4.0", # Bumped version for DB Integration
+    description="AI Cardiac Risk System with Live Environmental Context & User History"
 )
 
-# Global Variables to hold loaded components
+# Global Variables
 system = {
     "clf": None,      # Classifier (XGBoost)
     "reg": None,      # Regressor (Random Forest)
@@ -28,93 +34,116 @@ system = {
     "advisor": None   # Recommender
 }
 
+# --- 1. STARTUP EVENT (DB + MODELS) ---
 @app.on_event("startup")
-async def load_system():
-    """
-    Startup Event: Loads all ML models and API connections once.
-    """
-    print("Loading Medical AI System...")
+def on_startup():
+    print("Starting up Cardiac System...")
     
-    # 1. Load ML Artifacts
+    # A. Create Database Tables
+    create_db_and_tables()
+    print("Database tables created (heart_app.db)")
+    
+    # B. Load ML Artifacts
     try:
         system['clf'] = joblib.load(os.path.join(settings.MODEL_PATH, "model_classification.pkl"))
         system['reg'] = joblib.load(os.path.join(settings.MODEL_PATH, "model_regression.pkl"))
         system['cols'] = joblib.load(os.path.join(settings.MODEL_PATH, "model_columns.pkl"))
         system['scaler'] = joblib.load(os.path.join(settings.MODEL_PATH, "model_scaler.pkl"))
-        print("  ML Models & Scaler Loaded")
+        print(" ML Models & Scaler Loaded")
     except Exception as e:
-        print(f" CRITICAL ERROR: Could not load models. Check src/models/. Error: {e}")
-    
-    # 2. Initialize Logic Layers
+        print(f" CRITICAL ERROR: Could not load models. {e}")
+
+    # C. Initialize Logic Layers
     system['sensor'] = LiveDataClient()
     system['brain'] = EnvironmentalBayesNet()
     system['advisor'] = HeartRecommender()
-    print("  IoT & Logic Engines Ready")
-    print("System Online. Waiting for requests...")
+    print(" IoT & Logic Engines Ready")
 
+# --- 2. INCLUDE AUTH ROUTES ---
+app.include_router(auth_routes.router)
+
+# --- 3. THE SMART ENDPOINT (NOW SECURE) ---
 @app.post("/assess", response_model=AssessmentResponse)
-async def assess_patient(patient: PatientData):
+async def assess_patient(
+    patient: PatientData, 
+    # This forces the user to be logged in
+    current_user: User = Depends(get_current_user), 
+    # This gives us access to the database
+    session: Session = Depends(get_session)
+):
     """
-    The Core Fusion Endpoint.
+    Diagnostic Endpoint: 
+    1. Authenticates User
+    2. Runs AI Models
+    3. Fetches Weather
+    4. SAVES RESULT TO HISTORY
     """
-    # --- 1. PREPARE DATA ---
-    # Convert Pydantic model to dict, handling Enums -> Integers conversion automatically
+    
+    # --- A. PREPARE DATA ---
     input_dict = json.loads(patient.json())
+    city = input_dict.pop("city") 
     
-    city = input_dict.pop("city")  # Extract city for IoT layer
-    
-    # Convert to DataFrame
+    # DataFrame Conversion
     df = pd.DataFrame([input_dict])
-    
-    # One-Hot Encoding (Matches Training Logic)
     cat_cols = ['cp', 'restecg', 'slope', 'thal']
     df = pd.get_dummies(df, columns=cat_cols)
-    
-    # Align Columns (Ensure strict match with training data)
-    # This creates missing columns (like cp_2, cp_3) and fills them with 0
     df = df.reindex(columns=system['cols'], fill_value=0)
     
-    # Scale Features (Age, BP, etc.)
+    # Scaling
     num_cols = ['age', 'trestbps', 'chol', 'thalach', 'oldpeak']
     df[num_cols] = system['scaler'].transform(df[num_cols])
 
-    # --- 2. EXECUTE AI MODELS (Layer 1) ---
-    # Classifier: Returns probability of "Class 1" (Disease)
+    # --- B. EXECUTE AI (Layer 1) ---
     prob_disease = system['clf'].predict_proba(df)[0][1]
-    
-    # Regressor: Returns severity (0-4)
     severity_raw = system['reg'].predict(df)[0]
-    
-    # Calculate Base Medical Risk (Normalized 0.0 - 1.0)
     base_risk = (prob_disease * 0.6) + ((severity_raw / 4.0) * 0.4)
 
-    # --- 3. FETCH LIVE CONTEXT (Layer 2) ---
+    # --- C. LIVE CONTEXT (Layer 2) ---
     env_data = system['sensor'].get_data(city)
     env_stress = 0.0
-    
     if env_data['success']:
-        # Bayesian Inference
         bayes_res = system['brain'].infer_stress_probability(
-            env_data['temp'], 
-            env_data['aqi']
+            env_data['temp'], env_data['aqi']
         )
         env_stress = bayes_res['p_stress']
     
-    # --- 4. FUSION & ADVICE (Layer 3) ---
-    # Total Risk Formula
+    # --- D. FUSION (Layer 3) ---
     total_risk = min(base_risk + (env_stress * 0.15), 1.0)
     
-    # Get Recommendations (Using the NEW logic that checks patient details)
+    risk_category = "High Risk" if total_risk > 0.7 else "Moderate" if total_risk > 0.3 else "Low"
+    
+    # Get Advice
     advice = system['advisor'].get_recommendations(
         risk_score=total_risk,
         weather_data={"temp": env_data.get('temp', 0)},
         pollution_data={"aqi": env_data.get('aqi', 0)},
-        patient_data=input_dict  # <--- PASSING MEDICAL DATA HERE
+        patient_data=input_dict
+    )
+
+    #E. SAVE TO DATABASE
+    # We create a new row in the 'prediction' table
+    history_entry = Prediction(
+        user_id=current_user.id,  # Link to the logged-in user
+        
+        # Medical Data
+        age=patient.age, sex=patient.sex, cp=patient.cp,
+        trestbps=patient.trestbps, chol=patient.chol, fbs=patient.fbs,
+        restecg=patient.restecg, thalach=patient.thalach, exang=patient.exang,
+        oldpeak=patient.oldpeak, slope=patient.slope, ca=patient.ca, thal=patient.thal,
+        
+        # Results
+        prediction=1 if total_risk > 0.5 else 0,
+        probability=round(total_risk, 4),
+        risk_label=risk_category
     )
     
+    session.add(history_entry)
+    session.commit() # Save it!
+    
+    # --- F. RETURN RESPONSE ---
     return {
         "risk_score": round(total_risk * 100, 2),
-        "risk_category": "High Risk" if total_risk > 0.7 else "Moderate" if total_risk > 0.3 else "Low",
+        "risk_category": risk_category,
         "environment": {
             "city": city,
             "temp": env_data.get('temp'),
@@ -123,3 +152,7 @@ async def assess_patient(patient: PatientData):
         },
         "recommendations": advice['recommendations']
     }
+
+@app.get("/")
+def health_check():
+    return {"status": "online", "db": "connected", "auth": "active"}
