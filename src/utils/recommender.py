@@ -16,7 +16,7 @@ class HeartRecommender:
             print(f"  WARNING: advice_db.json not found at {db_path}")
             self.advice_db = []
 
-def generate_tags(self, risk_score, weather_data, pollution_data, patient_data={}):
+    def generate_tags(self, risk_score, weather_data, pollution_data, patient_data={}):
         """
         Converts numbers into tags.
         Now accepts optional 'patient_data' dict to check BP, Chol, etc.
@@ -65,12 +65,12 @@ def generate_tags(self, risk_score, weather_data, pollution_data, patient_data={
 
         return tags
 
-def get_recommendations(self, risk_score, weather_data={}, pollution_data={}):
+    def get_recommendations(self, risk_score, weather_data={}, pollution_data={}, patient_data={}):
         """
         The Logic: Matches Patient Tags -> Advice Tags
         """
         # Step 1: Generate Patient Profile
-        patient_tags = self.generate_tags(risk_score, weather_data, pollution_data)
+        patient_tags = self.generate_tags(risk_score, weather_data, pollution_data, patient_data)
         
         recommendations = []
         

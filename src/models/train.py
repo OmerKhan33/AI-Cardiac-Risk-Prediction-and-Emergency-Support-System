@@ -53,7 +53,7 @@ def train_models():
     )
 
     # ---------------------------------------------------------
-    # MODEL 1: XGBoost (Aggressively Tuned)
+    # MODEL 1: XGBoost (Tuned)
  
     print("\nTraining Tuned XGBoost Classifier...")
     
@@ -81,7 +81,7 @@ def train_models():
     # print(classification_report(y_class_test, y_pred_class))
 
     # ---------------------------------------------------------
-    #MODEL 2: Random Forest Regressor
+    #MODEL 2: Random Forest Regressor(Tuned)
     rf_param_grid = {
         'n_estimators': [100, 150, 200],
         'max_depth': [5, 7, 10],

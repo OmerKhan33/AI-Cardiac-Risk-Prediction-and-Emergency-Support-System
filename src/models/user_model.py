@@ -1,5 +1,8 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import Field, SQLModel, Relationship
+
+if TYPE_CHECKING:
+    from src.models.prediction_model import Prediction
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
