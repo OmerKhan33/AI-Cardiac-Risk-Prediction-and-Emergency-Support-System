@@ -44,5 +44,9 @@ def cardiac_retraining_flow():
     print(f"Pipeline Finished. Status: {state}")
 
 if __name__ == "__main__":
-    # Run the flow immediately (Manual Trigger)
-    cardiac_retraining_flow()
+    # Cron: "At 00:00 on Sunday" (0 = Sunday in cron)
+    # "0 0 * * 0"
+    cardiac_retraining_flow.serve(
+        name="daily-cardiac-training", 
+        cron="0 0 * * *"
+    )

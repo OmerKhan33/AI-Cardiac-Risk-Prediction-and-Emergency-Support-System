@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBClassifier
 from sklearn.preprocessing import StandardScaler
@@ -57,20 +57,21 @@ def train_models():
  
     print("\nTraining Tuned XGBoost Classifier...")
     
-    clf = XGBClassifier(
-        n_estimators=100,       # More trees
-        learning_rate=0.05,     # Learn slower = better generalization
-        max_depth=4,            # Limit depth to prevent memorization
-        gamma=0.2,              # Minimum loss reduction required to make a further partition
-        subsample=0.8,          # Use only 80% of data per tree (prevents overfitting)
-        colsample_bytree=0.6,   # Use only 60% of features per tree (forces diversity)
-        reg_alpha=0.1,          # L1 Regularization (noise filtering)
-        eval_metric='logloss',
-        use_label_encoder=False,
-        random_state=42
+    xgb_param_grid = {
+        'n_estimators': [50, 80, 100],
+        'max_depth': [2, 3, 4],
+        'learning_rate': [0.01, 0.025, 0.05],
+        'subsample': [0.6, 0.7, 0.8]
+    }
+
+    xgb_base = XGBClassifier(use_label_encoder=False, reg_alpha=0.1, eval_metric='logloss', random_state=42)
+
+    xgb_grid_search = GridSearchCV(
+        xgb_base, xgb_param_grid, cv=5, scoring='f1', n_jobs=-1, verbose=1
     )
-    clf.fit(X_train, y_class_train)
-    
+
+    xgb_grid_search.fit(X_train, y_class_train)
+    clf = xgb_grid_search.best_estimator_
     # Detailed Evaluation
     y_pred_class = clf.predict(X_test)
     acc = accuracy_score(y_class_test, y_pred_class)
@@ -81,10 +82,22 @@ def train_models():
 
     # ---------------------------------------------------------
     #MODEL 2: Random Forest Regressor
+    rf_param_grid = {
+        'n_estimators': [100, 150, 200],
+        'max_depth': [5, 7, 10],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4]
+    }
 
+    rf_base = RandomForestRegressor(random_state=42)
+
+    rf_grid_search = GridSearchCV(
+        rf_base, rf_param_grid, cv=5, scoring='neg_mean_absolute_error', n_jobs=-1, verbose=1
+    )
+
+    rf_grid_search.fit(X_train, y_reg_train)
     print("\nTraining Random Forest Regressor...")
-    reg = RandomForestRegressor(n_estimators=200, max_depth=10, random_state=42)
-    reg.fit(X_train, y_reg_train)
+    reg = rf_grid_search.best_estimator_
 
     y_pred_reg = reg.predict(X_test)
     mae = mean_absolute_error(y_reg_test, y_pred_reg)
