@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 import joblib
 import pandas as pd
@@ -19,8 +20,17 @@ from src.utils.recommender import HeartRecommender
 # Initialize App
 app = FastAPI(
     title=settings.APP_NAME, 
-    version="1.4.0", # Bumped version for DB Integration
+    version="1.5.0", # Bumped version for Docker + Frontend
     description="AI Cardiac Risk System with Live Environmental Context & User History"
+)
+
+# CORS Middleware (Allow frontend to communicate with API)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Global Variables

@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cardiac-api
+    ports:
+      - "8000:8000"
+    environment:
+      - WEATHER_API_KEY=${WEATHER_API_KEY}
+      - OPENAQ_API_KEY=${OPENAQ_API_KEY}
+    volumes:
+      - ./src/data:/app/src/data:ro          # Mount data folder (read-only)
+      - sqlite_data:/app/data                 # Persist SQLite database
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - cardiac-network
+
+  # Frontend Streamlit Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cardiac-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cardiac-network
+
+  # Optional: Prefect Worker for ML Pipeline (uncomment if needed)
+  # prefect-worker:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: cardiac-prefect
+  #   command: ["python", "-m", "src.pipelines.training_pipeline"]
+  #   volumes:
+  #     - ./src/data:/app/src/data
+  #     - ./src/models:/app/src/models
+  #   depends_on:
+  #     - api
+  #   networks:
+  #     - cardiac-network
+
+networks:
+  cardiac-network:
+    driver: bridge
+
+volumes:
+  sqlite_data:
+    driver: local
