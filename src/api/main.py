@@ -163,6 +163,32 @@ async def assess_patient(
         "recommendations": advice['recommendations']
     }
 
+# --- 4. HISTORY ENDPOINT ---
+@app.get("/history")
+async def get_history(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Get user's assessment history"""
+    predictions = session.query(Prediction).filter(
+        Prediction.user_id == current_user.id
+    ).order_by(Prediction.timestamp.desc()).limit(10).all()
+    
+    history = []
+    for p in predictions:
+        history.append({
+            "id": p.id,
+            "date": p.timestamp.strftime("%Y-%m-%d %H:%M"),
+            "age": p.age,
+            "risk_score": round(p.probability * 100, 1),
+            "risk_label": p.risk_label,
+            "chol": p.chol,
+            "trestbps": p.trestbps,
+            "thalach": p.thalach
+        })
+    
+    return {"history": history, "count": len(history)}
+
 @app.get("/")
 def health_check():
     return {"status": "online", "db": "connected", "auth": "active"}

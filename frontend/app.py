@@ -4,8 +4,6 @@ import os
 import time
 
 # --- PAGE CONFIG ---
-
-
 st.set_page_config(
     page_title="CardioGuard AI",
     page_icon="🫀",
@@ -21,6 +19,10 @@ if 'token' not in st.session_state:
     st.session_state.token = None
 if 'username' not in st.session_state:
     st.session_state.username = None
+if 'just_registered' not in st.session_state:
+    st.session_state.just_registered = False
+if 'show_welcome' not in st.session_state:
+    st.session_state.show_welcome = False
 
 # --- API FUNCTIONS ---
 def login(username, password):
@@ -75,243 +77,498 @@ def assess_patient(data, token):
     except Exception as e:
         return False, str(e)
 
-# --- PROFESSIONAL CSS - Medical Blue Theme ---
+# --- PROFESSIONAL CSS - Dark Medical Theme ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
     :root {
-        --primary: #0066CC;
-        --primary-dark: #004C99;
-        --primary-light: #E6F0FA;
-        --secondary: #00A878;
-        --accent: #FF6B6B;
-        --dark: #1A1F36;
-        --gray-900: #2D3748;
-        --gray-700: #4A5568;
-        --gray-500: #718096;
-        --gray-300: #CBD5E0;
-        --gray-100: #F7FAFC;
-        --white: #FFFFFF;
-        --success: #00A878;
-        --warning: #F6AD55;
-        --danger: #E53E3E;
+        --bg-primary: #0a0f1a;
+        --bg-secondary: #111827;
+        --bg-card: #1f2937;
+        --bg-input: #374151;
+        --accent-blue: #3b82f6;
+        --accent-blue-hover: #2563eb;
+        --accent-green: #10b981;
+        --accent-orange: #f59e0b;
+        --accent-red: #ef4444;
+        --text-primary: #f9fafb;
+        --text-secondary: #9ca3af;
+        --text-muted: #6b7280;
+        --border-color: #374151;
+        --gradient-start: #3b82f6;
+        --gradient-end: #8b5cf6;
     }
     
     * {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    /* Hide Streamlit Elements */
+    /* Hide Streamlit defaults */
     #MainMenu, footer, header {visibility: hidden;}
     .stDeployButton {display: none;}
+    div[data-testid="stToolbar"] {display: none;}
+    div[data-testid="stDecoration"] {display: none;}
     
-    /* Main Container */
+    /* Main background */
+    .stApp {
+        background: var(--bg-primary);
+    }
+    
     .main .block-container {
-        padding: 2rem 3rem;
-        max-width: 1400px;
+        padding: 0 !important;
+        max-width: 100% !important;
     }
     
-    /* Auth Container */
-    .auth-wrapper {
-        min-height: 80vh;
+    /* ========== NAVBAR ========== */
+    .navbar {
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+        padding: 0.75rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+    
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .nav-logo {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 1.25rem;
     }
     
-    .auth-card {
-        background: var(--white);
-        border-radius: 20px;
-        padding: 3rem;
-        box-shadow: 0 10px 40px rgba(0, 102, 204, 0.1);
-        max-width: 440px;
-        width: 100%;
-        border: 1px solid var(--gray-100);
-    }
-    
-    .brand-header {
-        text-align: center;
-        margin-bottom: 2.5rem;
-    }
-    
-    .brand-icon {
-        width: 70px;
-        height: 70px;
-        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-        border-radius: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1.2rem;
-        font-size: 2rem;
-    }
-    
-    .brand-name {
-        font-size: 1.75rem;
+    .nav-title {
+        font-size: 1.25rem;
         font-weight: 700;
-        color: var(--dark);
-        margin: 0;
+        color: var(--text-primary);
         letter-spacing: -0.5px;
     }
     
-    .brand-tagline {
-        color: var(--gray-500);
-        font-size: 0.95rem;
-        margin-top: 0.5rem;
+    /* Hamburger Menu */
+    .menu-toggle {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        cursor: pointer;
+        padding: 8px;
     }
     
-    /* Form Inputs */
-    .stTextInput > div > div > input {
-        background: var(--gray-100) !important;
-        border: 2px solid transparent !important;
-        border-radius: 12px !important;
-        padding: 14px 18px !important;
-        font-size: 1rem !important;
-        color: var(--dark) !important;
-        transition: all 0.2s ease !important;
+    .menu-toggle span {
+        width: 24px;
+        height: 3px;
+        background: var(--text-primary);
+        border-radius: 2px;
+        transition: 0.3s;
     }
     
-    .stTextInput > div > div > input:focus {
-        background: var(--white) !important;
-        border-color: var(--primary) !important;
-        box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1) !important;
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: var(--bg-secondary) !important;
+        border-right: 1px solid var(--border-color);
     }
     
-    .stTextInput > div > div > input::placeholder {
-        color: var(--gray-500) !important;
+    [data-testid="stSidebar"] > div {
+        background: var(--bg-secondary) !important;
     }
     
-    /* Buttons */
-    .stButton > button {
-        background: linear-gradient(135deg, var(--primary), var(--primary-dark)) !important;
-        color: var(--white) !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 14px 28px !important;
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.3px !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(0, 102, 204, 0.3) !important;
+    [data-testid="stSidebarContent"] {
+        background: var(--bg-secondary) !important;
     }
     
-    .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(0, 102, 204, 0.4) !important;
+    .nav-profile {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
     }
     
-    .stButton > button:active {
-        transform: translateY(0) !important;
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--bg-card);
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        border: 1px solid var(--border-color);
     }
     
-    /* Secondary Button */
-    .secondary-btn > button {
-        background: var(--gray-100) !important;
-        color: var(--gray-700) !important;
-        box-shadow: none !important;
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, var(--accent-green), #059669);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: white;
     }
     
-    .secondary-btn > button:hover {
-        background: var(--gray-300) !important;
-        box-shadow: none !important;
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        background: var(--gray-100);
-        border-radius: 14px;
-        padding: 6px;
-        gap: 6px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        border-radius: 10px;
-        color: var(--gray-700);
+    .user-name {
+        color: var(--text-primary);
         font-weight: 500;
-        padding: 12px 24px;
+        font-size: 0.9rem;
     }
     
-    .stTabs [aria-selected="true"] {
-        background: var(--white) !important;
-        color: var(--primary) !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    .user-role {
+        color: var(--text-muted);
+        font-size: 0.75rem;
     }
     
-    /* Dashboard Header */
-    .dash-header {
-        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-        border-radius: 20px;
-        padding: 2rem 2.5rem;
-        margin-bottom: 2rem;
-        color: var(--white);
+    /* ========== AUTH PAGE ========== */
+    .auth-container {
+        min-height: 100vh;
+        display: flex;
+        background: var(--bg-primary);
     }
     
-    .dash-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin: 0;
+    .auth-left {
+        flex: 1;
+        background: linear-gradient(135deg, #1e3a5f 0%, #0a0f1a 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 4rem;
     }
     
-    .dash-subtitle {
-        opacity: 0.9;
-        margin-top: 0.25rem;
-        font-size: 0.95rem;
+    .auth-hero-title {
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        line-height: 1.2;
+        margin-bottom: 1.5rem;
     }
     
-    /* Cards */
-    .info-card {
-        background: var(--white);
-        border-radius: 16px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        border: 1px solid var(--gray-100);
-        height: 100%;
-        transition: all 0.3s ease;
+    .auth-hero-title span {
+        background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     
-    .info-card:hover {
-        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-        transform: translateY(-3px);
+    .auth-hero-desc {
+        color: var(--text-secondary);
+        font-size: 1.125rem;
+        line-height: 1.7;
+        max-width: 500px;
     }
     
-    .card-icon {
-        width: 48px;
-        height: 48px;
+    .auth-features {
+        display: flex;
+        gap: 2rem;
+        margin-top: 3rem;
+    }
+    
+    .auth-feature {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .auth-feature-icon {
+        width: 44px;
+        height: 44px;
+        background: rgba(59, 130, 246, 0.15);
         border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 1.25rem;
+    }
+    
+    .auth-feature-text {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    
+    .auth-right {
+        width: 480px;
+        background: var(--bg-secondary);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 3rem;
+    }
+    
+    .auth-card {
+        background: var(--bg-card);
+        border-radius: 20px;
+        padding: 2.5rem;
+        border: 1px solid var(--border-color);
+    }
+    
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .auth-logo {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        margin: 0 auto 1rem;
+    }
+    
+    .auth-title {
         font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+    
+    .auth-subtitle {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+    
+    /* ========== FORM INPUTS ========== */
+    .stTextInput > label, .stSelectbox > label, .stNumberInput > label {
+        color: var(--text-secondary) !important;
+        font-weight: 500 !important;
+        font-size: 0.875rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .stTextInput > div > div > input {
+        background: var(--bg-input) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 10px !important;
+        padding: 0.875rem 1rem !important;
+        font-size: 0.95rem !important;
+        color: var(--text-primary) !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: var(--accent-blue) !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+    }
+    
+    .stTextInput > div > div > input::placeholder {
+        color: var(--text-muted) !important;
+    }
+    
+    .stNumberInput > div > div > input {
+        background: var(--bg-input) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 10px !important;
+        color: var(--text-primary) !important;
+    }
+    
+    .stSelectbox > div > div {
+        background: var(--bg-input) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 10px !important;
+    }
+    
+    .stSelectbox > div > div > div {
+        color: var(--text-primary) !important;
+    }
+    
+    /* ========== BUTTONS ========== */
+    .stButton > button {
+        background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end)) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.875rem 1.5rem !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3) !important;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4) !important;
+    }
+    
+    /* Logout button */
+    .logout-btn button {
+        background: transparent !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-secondary) !important;
+        box-shadow: none !important;
+        padding: 0.5rem 1rem !important;
+        font-size: 0.85rem !important;
+    }
+    
+    .logout-btn button:hover {
+        background: rgba(239, 68, 68, 0.1) !important;
+        border-color: var(--accent-red) !important;
+        color: var(--accent-red) !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    
+    /* ========== TABS ========== */
+    .stTabs [data-baseweb="tab-list"] {
+        background: var(--bg-input);
+        border-radius: 12px;
+        padding: 4px;
+        gap: 4px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        border-radius: 8px;
+        color: var(--text-muted);
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: var(--accent-blue) !important;
+        color: white !important;
+    }
+    
+    /* ========== FEATURE CARDS ========== */
+    .feature-card {
+        background: var(--bg-card);
+        border-radius: 16px;
+        padding: 1.5rem;
+        text-align: center;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+        border-color: var(--accent-blue);
+        transform: translateY(-3px);
+    }
+    
+    .feature-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .feature-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .feature-desc {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+    
+    /* ========== WELCOME BANNER PRO ========== */
+    .welcome-banner-pro {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 20px;
+        padding: 3rem 2rem;
+        text-align: center;
+        margin: 2rem 0;
+    }
+    
+    .welcome-icon-row {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .welcome-title-pro {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .welcome-desc-pro {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        line-height: 1.7;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    /* ========== WELCOME BANNER ========== */
+    .welcome-banner {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(59, 130, 246, 0.15));
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 16px;
+        padding: 2rem;
+        margin: 2rem;
+        text-align: center;
+    }
+    
+    .welcome-emoji {
+        font-size: 3rem;
         margin-bottom: 1rem;
     }
     
-    .card-icon.blue { background: var(--primary-light); }
-    .card-icon.green { background: rgba(0, 168, 120, 0.1); }
-    .card-icon.orange { background: rgba(246, 173, 85, 0.15); }
-    
-    .card-value {
+    .welcome-title {
         font-size: 1.75rem;
         font-weight: 700;
-        color: var(--dark);
-        line-height: 1.2;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
     }
     
-    .card-label {
-        color: var(--gray-500);
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
+    .welcome-message {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        max-width: 500px;
+        margin: 0 auto;
+        line-height: 1.6;
     }
     
-    /* Form Sections */
+    /* ========== CONTENT AREA ========== */
+    .content-area {
+        padding: 2rem 3rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .page-desc {
+        color: var(--text-secondary);
+        font-size: 1rem;
+    }
+    
+    /* ========== FORM SECTIONS ========== */
     .form-section {
-        background: var(--white);
+        background: var(--bg-card);
         border-radius: 16px;
-        padding: 1.75rem;
+        padding: 1.5rem;
         margin-bottom: 1.5rem;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        border: 1px solid var(--gray-100);
+        border: 1px solid var(--border-color);
     }
     
     .section-header {
@@ -320,13 +577,13 @@ st.markdown("""
         gap: 0.75rem;
         margin-bottom: 1.25rem;
         padding-bottom: 1rem;
-        border-bottom: 1px solid var(--gray-100);
+        border-bottom: 1px solid var(--border-color);
     }
     
     .section-icon {
-        width: 36px;
-        height: 36px;
-        background: var(--primary-light);
+        width: 40px;
+        height: 40px;
+        background: rgba(59, 130, 246, 0.15);
         border-radius: 10px;
         display: flex;
         align-items: center;
@@ -335,42 +592,12 @@ st.markdown("""
     }
     
     .section-title {
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 600;
-        color: var(--dark);
-        margin: 0;
+        color: var(--text-primary);
     }
     
-    /* Select boxes */
-    .stSelectbox > div > div {
-        background: var(--gray-100) !important;
-        border: 2px solid transparent !important;
-        border-radius: 12px !important;
-    }
-    
-    .stSelectbox > div > div:focus-within {
-        border-color: var(--primary) !important;
-        background: var(--white) !important;
-    }
-    
-    /* Number inputs */
-    .stNumberInput > div > div > input {
-        background: var(--gray-100) !important;
-        border: 2px solid transparent !important;
-        border-radius: 12px !important;
-    }
-    
-    .stNumberInput > div > div > input:focus {
-        background: var(--white) !important;
-        border-color: var(--primary) !important;
-    }
-    
-    /* Slider */
-    .stSlider > div > div > div > div {
-        background: var(--primary) !important;
-    }
-    
-    /* Risk Results */
+    /* ========== RESULT CARDS ========== */
     .result-card {
         border-radius: 20px;
         padding: 3rem 2rem;
@@ -379,41 +606,45 @@ st.markdown("""
     }
     
     .result-card.high {
-        background: linear-gradient(135deg, #E53E3E, #C53030);
-        color: white;
+        background: linear-gradient(135deg, #dc2626, #991b1b);
     }
     
     .result-card.moderate {
-        background: linear-gradient(135deg, #ED8936, #DD6B20);
-        color: white;
+        background: linear-gradient(135deg, #d97706, #b45309);
     }
     
     .result-card.low {
-        background: linear-gradient(135deg, #38A169, #2F855A);
-        color: white;
+        background: linear-gradient(135deg, #059669, #047857);
     }
     
     .result-score {
-        font-size: 4.5rem;
-        font-weight: 700;
+        font-size: 4rem;
+        font-weight: 800;
+        color: white;
         line-height: 1;
     }
     
     .result-label {
         font-size: 1.25rem;
+        color: rgba(255,255,255,0.9);
         margin-top: 0.75rem;
-        opacity: 0.95;
         font-weight: 500;
     }
     
-    /* Environment Cards */
+    /* ========== ENV CARDS ========== */
+    .env-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+    
     .env-card {
-        background: var(--white);
+        background: var(--bg-card);
         border-radius: 14px;
         padding: 1.25rem;
         text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-        border: 1px solid var(--gray-100);
+        border: 1px solid var(--border-color);
     }
     
     .env-icon {
@@ -424,250 +655,370 @@ st.markdown("""
     .env-value {
         font-size: 1.25rem;
         font-weight: 700;
-        color: var(--dark);
+        color: var(--text-primary);
     }
     
     .env-label {
         font-size: 0.8rem;
-        color: var(--gray-500);
+        color: var(--text-muted);
         margin-top: 0.25rem;
     }
     
-    /* Recommendations */
+    /* ========== RECOMMENDATIONS ========== */
     .rec-item {
-        background: var(--primary-light);
-        border-left: 4px solid var(--primary);
+        background: rgba(59, 130, 246, 0.1);
+        border-left: 4px solid var(--accent-blue);
         padding: 1rem 1.25rem;
         border-radius: 0 12px 12px 0;
         margin-bottom: 0.75rem;
-        color: var(--dark);
+        color: var(--text-primary);
         font-size: 0.95rem;
     }
     
-    /* Alert box */
+    /* ========== ALERT ========== */
     .alert-box {
-        background: rgba(229, 62, 62, 0.1);
-        border: 1px solid rgba(229, 62, 62, 0.3);
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
         border-radius: 12px;
         padding: 1rem 1.25rem;
-        color: #C53030;
+        color: #fca5a5;
         font-weight: 500;
+        margin-top: 1.5rem;
     }
     
-    /* Footer */
+    /* ========== SUCCESS MESSAGE ========== */
+    .success-msg {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 12px;
+        padding: 1rem;
+        color: #6ee7b7;
+        text-align: center;
+        margin: 1rem 0;
+    }
+    
+    /* ========== FOOTER ========== */
     .footer {
         text-align: center;
-        padding: 2rem 0;
-        margin-top: 3rem;
-        border-top: 1px solid var(--gray-100);
-        color: var(--gray-500);
+        padding: 2rem;
+        margin-top: 2rem;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-muted);
         font-size: 0.875rem;
     }
     
-    /* Feature Cards on Auth Page */
-    .feature-card {
-        background: var(--white);
-        border-radius: 14px;
-        padding: 1.5rem;
-        text-align: center;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        border: 1px solid var(--gray-100);
+    /* Slider */
+    .stSlider > div > div > div > div {
+        background: var(--accent-blue) !important;
     }
     
-    .feature-icon {
-        font-size: 2rem;
-        margin-bottom: 0.75rem;
-    }
-    
-    .feature-title {
-        font-weight: 600;
-        color: var(--dark);
-        margin-bottom: 0.25rem;
-    }
-    
-    .feature-desc {
-        font-size: 0.85rem;
-        color: var(--gray-500);
+    .stSlider > div > div > div > div > div {
+        background: var(--accent-blue) !important;
     }
     
     /* Hide anchor links */
-    .css-15zrgzn {display: none}
-    .css-zt5igj {display: none}
-    a[href^="#"] {display: none}
+    .css-15zrgzn, .css-zt5igj, a[href^="#"] {display: none !important;}
+    
+    /* Markdown text color */
+    .stMarkdown, .stMarkdown p, .stMarkdown li {
+        color: var(--text-primary) !important;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text-primary) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # === AUTHENTICATION PAGE ===
 def show_auth_page():
-    st.markdown('<div class="auth-wrapper">', unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 1.5, 1])
+    # Centered layout
+    col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
         st.markdown("""
-        <div class="auth-card">
-            <div class="brand-header">
-                <div class="brand-icon">🫀</div>
-                <h1 class="brand-name">CardioGuard AI</h1>
-                <p class="brand-tagline">Intelligent Cardiac Risk Assessment</p>
-            </div>
+        <div style="text-align: center; padding-top: 2rem;">
+            <div class="auth-logo">🫀</div>
+            <h2 class="auth-title">CardioGuard AI</h2>
+            <p class="auth-subtitle">Intelligent Cardiac Risk Assessment</p>
         </div>
         """, unsafe_allow_html=True)
         
-        tab1, tab2 = st.tabs(["Sign In", "Create Account"])
+        tab1, tab2 = st.tabs(["🔐 Sign In", "✨ Create Account"])
         
         with tab1:
             with st.form("login_form", clear_on_submit=False):
-                st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
                 username = st.text_input("Username", placeholder="Enter your username", key="login_user")
                 password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_pass")
-                st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
                 
-                submitted = st.form_submit_button("Sign In", use_container_width=True)
+                st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
+                submitted = st.form_submit_button("Sign In →", use_container_width=True)
                 
                 if submitted:
                     if not username or not password:
-                        st.error("Please enter both username and password")
+                        st.error("⚠️ Please enter both username and password")
                     else:
                         with st.spinner("Signing in..."):
                             success, result = login(username, password)
                             if success:
                                 st.session_state.token = result['access_token']
                                 st.session_state.username = username
-                                st.success("Welcome back!")
+                                st.session_state.show_welcome = True
                                 time.sleep(0.5)
                                 st.rerun()
                             else:
-                                st.error(f"Login failed: {result}")
+                                st.error(f"❌ {result}")
         
         with tab2:
             with st.form("register_form", clear_on_submit=False):
-                st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
-                new_username = st.text_input("Choose Username", placeholder="Pick a username", key="reg_user")
+                new_username = st.text_input("Choose Username", placeholder="Pick a unique username", key="reg_user")
                 new_password = st.text_input("Create Password", type="password", placeholder="Min 4 characters", key="reg_pass")
                 confirm_password = st.text_input("Confirm Password", type="password", placeholder="Re-enter password", key="reg_pass2")
-                st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
                 
-                submitted = st.form_submit_button("Create Account", use_container_width=True)
+                st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
+                submitted = st.form_submit_button("Create Account →", use_container_width=True)
                 
                 if submitted:
                     if not new_username or not new_password:
-                        st.error("Please fill in all fields")
+                        st.error("⚠️ Please fill in all fields")
                     elif len(new_password) < 4:
-                        st.error("Password must be at least 4 characters")
+                        st.error("⚠️ Password must be at least 4 characters")
                     elif new_password != confirm_password:
-                        st.error("Passwords do not match")
+                        st.error("⚠️ Passwords do not match")
                     else:
-                        with st.spinner("Creating account..."):
+                        with st.spinner("Creating your account..."):
                             success, result = register(new_username, new_password)
                             if success:
-                                st.success("Account created! Please sign in.")
+                                st.markdown("""
+                                <div class="success-msg">
+                                    ✅ <strong>Account created successfully!</strong><br>
+                                    Please sign in with your credentials.
+                                </div>
+                                """, unsafe_allow_html=True)
+                                st.balloons()
                             else:
-                                st.error(f"Registration failed: {result}")
+                                st.error(f"❌ {result}")
         
-        # Features
+        # Features below form
         st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
-        
         f1, f2, f3 = st.columns(3)
         with f1:
             st.markdown("""
             <div class="feature-card">
                 <div class="feature-icon">🤖</div>
-                <div class="feature-title">AI Analysis</div>
-                <div class="feature-desc">Machine Learning Models</div>
+                <div class="feature-title">ML-Powered Analysis</div>
+                <div class="feature-desc">Advanced Machine Learning Models</div>
             </div>
             """, unsafe_allow_html=True)
         with f2:
             st.markdown("""
             <div class="feature-card">
                 <div class="feature-icon">🌍</div>
-                <div class="feature-title">Live Data</div>
-                <div class="feature-desc">Real-time Environment</div>
+                <div class="feature-title">Real-time Environment</div>
+                <div class="feature-desc">Live Weather & Air Quality Data</div>
             </div>
             """, unsafe_allow_html=True)
         with f3:
             st.markdown("""
             <div class="feature-card">
                 <div class="feature-icon">💊</div>
-                <div class="feature-title">Smart Advice</div>
-                <div class="feature-desc">Personalized Care</div>
+                <div class="feature-title">Personalized Advice</div>
+                <div class="feature-desc">Smart Health Recommendations</div>
             </div>
             """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # === DASHBOARD PAGE ===
 def show_dashboard():
-    # Header
-    col_header, col_logout = st.columns([5, 1])
-    with col_header:
-        st.markdown(f"""
-        <div class="dash-header">
-            <p class="dash-title">🫀 CardioGuard AI</p>
-            <p class="dash-subtitle">Welcome, {st.session_state.username}</p>
+    # Professional Header with Profile & Logout inline
+    header_col1, header_col2 = st.columns([6, 4])
+    
+    with header_col1:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 12px; padding: 1rem 0;">
+            <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
+                        border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                🫀
+            </div>
+            <div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #f9fafb;">CardioGuard AI</div>
+                <div style="font-size: 0.75rem; color: #6b7280;">Cardiac Risk Assessment</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-    with col_logout:
-        st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
-        if st.button("Sign Out", key="logout_btn", use_container_width=True):
-            st.session_state.token = None
-            st.session_state.username = None
-            st.rerun()
     
-    # Assessment Form
-    st.markdown("### 📋 Cardiac Risk Assessment")
-    st.markdown("Complete the form below for your personalized risk evaluation.")
-    st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+    with header_col2:
+        profile_col, logout_col = st.columns([3, 1])
+        with profile_col:
+            st.markdown(f"""
+            <div style="display: flex; align-items: center; gap: 10px; justify-content: flex-end; padding: 1rem 0;">
+                <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #10b981, #059669); 
+                            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+                            font-size: 0.9rem; color: white; font-weight: 600;">
+                    {st.session_state.username[0].upper()}
+                </div>
+                <div style="text-align: left;">
+                    <div style="font-size: 0.9rem; font-weight: 500; color: #f9fafb;">{st.session_state.username}</div>
+                    <div style="font-size: 0.7rem; color: #6b7280;">Patient</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with logout_col:
+            st.markdown("<div style='padding-top: 1rem;'>", unsafe_allow_html=True)
+            if st.button("🚪", key="logout_btn", help="Logout"):
+                st.session_state.token = None
+                st.session_state.username = None
+                st.session_state.show_welcome = False
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    st.markdown("<hr style='border: none; border-top: 1px solid #374151; margin: 0 0 1.5rem 0;'>", unsafe_allow_html=True)
+    
+    # Welcome Banner (shown only once after login)
+    if st.session_state.show_welcome:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
+                    border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px; padding: 2.5rem; 
+                    text-align: center; margin-bottom: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">👋🫀✨</div>
+            <h2 style="font-size: 1.75rem; font-weight: 700; color: #f9fafb; margin-bottom: 0.75rem;">
+                Welcome to CardioGuard, {st.session_state.username}!
+            </h2>
+            <p style="color: #9ca3af; font-size: 1rem; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+                We're excited to have you! Complete the cardiac assessment form below to receive your 
+                personalized risk evaluation powered by AI and real-time environmental data.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.session_state.show_welcome = False
+    
+    # Tabs for Assessment and History
+    tab_assess, tab_history = st.tabs(["📋 New Assessment", "📊 My History"])
+    
+    with tab_assess:
+        show_assessment_form()
+    
+    with tab_history:
+        show_history()
+
+def get_history(token):
+    """Fetch user's assessment history"""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.get(f"{API_URL}/history", headers=headers, timeout=10)
+        if response.status_code == 200:
+            return True, response.json()
+        return False, "Failed to load history"
+    except Exception as e:
+        return False, str(e)
+
+def show_history():
+    """Display user's assessment history"""
+    success, data = get_history(st.session_state.token)
+    
+    if success and data.get('history'):
+        st.markdown(f"""
+        <div style="margin-bottom: 1.5rem;">
+            <h3 style="color: #f9fafb; font-size: 1.25rem;">Your Assessment History</h3>
+            <p style="color: #6b7280;">You have {data['count']} previous assessments</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for item in data['history']:
+            # Use percentage-based logic (>=60% = High Risk)
+            score = item['risk_score']
+            if score >= 60:
+                risk_color = "#ef4444"
+                risk_label = "High Risk"
+            elif score >= 30:
+                risk_color = "#f59e0b"
+                risk_label = "Moderate"
+            else:
+                risk_color = "#10b981"
+                risk_label = "Low Risk"
+            
+            st.markdown(f"""
+            <div style="background: #1f2937; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; 
+                        border-left: 4px solid {risk_color};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="color: #f9fafb; font-weight: 600; font-size: 1rem;">
+                            Risk Score: {item['risk_score']}%
+                        </div>
+                        <div style="color: #6b7280; font-size: 0.85rem; margin-top: 0.25rem;">
+                            {item['date']} • Age: {item['age']} • BP: {item['trestbps']} • Chol: {item['chol']}
+                        </div>
+                    </div>
+                    <div style="background: {risk_color}; color: white; padding: 0.5rem 1rem; 
+                                border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
+                        {risk_label}
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="text-align: center; padding: 3rem; background: #1f2937; border-radius: 16px;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+            <h3 style="color: #f9fafb; margin-bottom: 0.5rem;">No History Yet</h3>
+            <p style="color: #6b7280;">Complete your first assessment to see your history here.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+def show_assessment_form():
+    """The main assessment form"""
+    # Page Header
+    st.markdown("""
+    <div style="margin-bottom: 1.5rem;">
+        <h1 style="font-size: 1.5rem; font-weight: 700; color: #f9fafb; margin-bottom: 0.25rem;">📋 Cardiac Risk Assessment</h1>
+        <p style="color: #9ca3af; font-size: 0.95rem;">Complete the form below for your personalized AI-powered risk evaluation.</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     with st.form("assessment_form"):
-        # Demographics Section
+        # Section 1: Demographics
         st.markdown("""
         <div class="form-section">
             <div class="section-header">
                 <div class="section-icon">👤</div>
-                <h3 class="section-title">Demographics & Location</h3>
+                <span class="section-title">Demographics & Location</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
         d1, d2, d3 = st.columns(3)
         with d1:
-            age = st.number_input("Age (years)", min_value=18, max_value=120, value=45, help="Your current age")
+            age = st.number_input("Age (years)", min_value=18, max_value=120, value=45)
         with d2:
-            sex = st.selectbox("Sex", options=["Male", "Female"], help="Biological sex")
+            sex = st.selectbox("Biological Sex", options=["Male", "Female"])
         with d3:
-            city = st.text_input("City", value="London", help="For weather & air quality data")
+            city = st.text_input("City (for weather data)", value="London")
         
-        st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
-        
-        # Vital Signs Section
+        # Section 2: Vital Signs
         st.markdown("""
         <div class="form-section">
             <div class="section-header">
                 <div class="section-icon">🩺</div>
-                <h3 class="section-title">Vital Signs & Blood Work</h3>
+                <span class="section-title">Vital Signs & Blood Work</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
         v1, v2, v3, v4 = st.columns(4)
         with v1:
-            trestbps = st.number_input("Blood Pressure (mm Hg)", min_value=80, max_value=220, value=120, help="Resting blood pressure")
+            trestbps = st.number_input("Blood Pressure (mm Hg)", min_value=80, max_value=220, value=120)
         with v2:
-            chol = st.number_input("Cholesterol (mg/dl)", min_value=100, max_value=600, value=200, help="Serum cholesterol level")
+            chol = st.number_input("Cholesterol (mg/dl)", min_value=100, max_value=600, value=200)
         with v3:
-            thalach = st.number_input("Max Heart Rate", min_value=60, max_value=220, value=150, help="Maximum heart rate achieved")
+            thalach = st.number_input("Max Heart Rate", min_value=60, max_value=220, value=150)
         with v4:
-            fbs = st.selectbox("Blood Sugar > 120", options=["No", "Yes"], help="Fasting blood sugar > 120 mg/dl")
+            fbs = st.selectbox("Blood Sugar > 120 mg/dl", options=["No", "Yes"])
         
-        st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
-        
-        # Symptoms Section
+        # Section 3: Symptoms
         st.markdown("""
         <div class="form-section">
             <div class="section-header">
                 <div class="section-icon">📊</div>
-                <h3 class="section-title">Symptoms & ECG Results</h3>
+                <span class="section-title">Symptoms & ECG Results</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -679,54 +1030,42 @@ def show_dashboard():
                 "Atypical Angina", 
                 "Non-Anginal Pain",
                 "Asymptomatic"
-            ], help="Type of chest pain experienced")
+            ])
         with s2:
-            restecg = st.selectbox("Resting ECG", options=[
+            restecg = st.selectbox("Resting ECG Result", options=[
                 "Normal",
                 "ST-T Wave Abnormality",
                 "Left Ventricular Hypertrophy"
-            ], help="Resting ECG results")
+            ])
         with s3:
-            exang = st.selectbox("Exercise Angina", options=["No", "Yes"], help="Chest pain during exercise")
+            exang = st.selectbox("Exercise-Induced Angina", options=["No", "Yes"])
         
-        st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
-        
-        # Advanced Tests Section
+        # Section 4: Advanced Tests
         st.markdown("""
         <div class="form-section">
             <div class="section-header">
                 <div class="section-icon">🔬</div>
-                <h3 class="section-title">Advanced Cardiac Tests</h3>
+                <span class="section-title">Advanced Cardiac Tests</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
         a1, a2, a3, a4 = st.columns(4)
         with a1:
-            oldpeak = st.slider("ST Depression", min_value=0.0, max_value=6.0, value=1.0, step=0.1, help="ST depression induced by exercise")
+            oldpeak = st.slider("ST Depression", min_value=0.0, max_value=6.0, value=1.0, step=0.1)
         with a2:
-            slope = st.selectbox("ST Slope", options=[
-                "Upsloping",
-                "Flat",
-                "Downsloping"
-            ], help="Slope of peak exercise ST segment")
+            slope = st.selectbox("ST Slope", options=["Upsloping", "Flat", "Downsloping"])
         with a3:
-            ca = st.selectbox("Vessels Colored", options=["0", "1", "2", "3", "4"], help="Major vessels colored by fluoroscopy")
+            ca = st.selectbox("Vessels Colored", options=["0", "1", "2", "3", "4"])
         with a4:
-            thal = st.selectbox("Thalassemia", options=[
-                "Normal",
-                "Fixed Defect",
-                "Reversible Defect"
-            ], help="Thalassemia status")
+            thal = st.selectbox("Thalassemia", options=["Normal", "Fixed Defect", "Reversible Defect"])
         
-        st.markdown("<div style='height: 1.5rem'></div>", unsafe_allow_html=True)
-        
-        # Submit
-        submitted = st.form_submit_button("🔬 Analyze Cardiac Risk", use_container_width=True)
+        st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("🔬 Analyze My Cardiac Risk", use_container_width=True)
     
     # Process Results
     if submitted:
-        with st.spinner("Analyzing your cardiac data..."):
+        with st.spinner("🧠 AI is analyzing your cardiac data..."):
             # Convert values
             sex_val = 1 if sex == "Male" else 0
             cp_val = ["Typical Angina", "Atypical Angina", "Non-Anginal Pain", "Asymptomatic"].index(cp)
@@ -738,41 +1077,35 @@ def show_dashboard():
             thal_val = ["Normal", "Fixed Defect", "Reversible Defect"].index(thal) + 1
             
             patient_data = {
-                "age": age,
-                "sex": sex_val,
-                "cp": cp_val,
-                "trestbps": trestbps,
-                "chol": chol,
-                "fbs": fbs_val,
-                "restecg": restecg_val,
-                "thalach": thalach,
-                "exang": exang_val,
-                "oldpeak": oldpeak,
-                "slope": slope_val,
-                "ca": ca_val,
-                "thal": thal_val,
-                "city": city
+                "age": age, "sex": sex_val, "cp": cp_val,
+                "trestbps": trestbps, "chol": chol, "fbs": fbs_val,
+                "restecg": restecg_val, "thalach": thalach, "exang": exang_val,
+                "oldpeak": oldpeak, "slope": slope_val, "ca": ca_val,
+                "thal": thal_val, "city": city
             }
             
             success, result = assess_patient(patient_data, st.session_state.token)
         
         if success:
             st.markdown("---")
-            st.markdown("## 📊 Assessment Results")
+            st.markdown("## 📊 Your Assessment Results")
             
             risk_score = result['risk_score']
             risk_category = result['risk_category']
             
-            # Determine risk class
-            if risk_category == "High Risk":
+            # Determine risk class based on percentage (>60% = high risk with red)
+            if risk_score >= 60:
                 risk_class = "high"
                 risk_emoji = "🚨"
-            elif risk_category == "Moderate":
+                risk_category = "High Risk"
+            elif risk_score >= 30:
                 risk_class = "moderate"
                 risk_emoji = "⚠️"
+                risk_category = "Moderate Risk"
             else:
                 risk_class = "low"
                 risk_emoji = "✅"
+                risk_category = "Low Risk"
             
             # Display result
             r1, r2, r3 = st.columns([1, 2, 1])
@@ -827,30 +1160,32 @@ def show_dashboard():
                 """, unsafe_allow_html=True)
             
             # Recommendations
-            st.markdown("### 💊 Recommendations")
+            st.markdown("### 💊 Personalized Recommendations")
             for rec in result['recommendations']:
-                st.markdown(f'<div class="rec-item">💡 {rec}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="rec-item">{rec}</div>', unsafe_allow_html=True)
             
             # Warning for high risk
             if risk_category == "High Risk":
                 st.markdown("""
                 <div class="alert-box">
-                    ⚠️ <strong>Important:</strong> Your assessment indicates elevated cardiac risk. 
-                    Please consult a healthcare professional for comprehensive evaluation.
+                    🚨 <strong>IMPORTANT:</strong> Your assessment indicates elevated cardiac risk. 
+                    Please consult a healthcare professional immediately for comprehensive evaluation.
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.error(f"Assessment failed: {result}")
+            st.error(f"❌ Assessment failed: {result}")
     
     # Footer
     st.markdown("""
     <div class="footer">
-        <p>🫀 <strong>CardioGuard AI</strong> — Intelligent Cardiac Risk Assessment</p>
-        <p style="margin-top: 0.5rem; font-size: 0.8rem;">
-            ⚠️ This tool is for educational purposes only. Always consult qualified healthcare professionals.
+        <p>🫀 <strong>CardioGuard AI</strong> — Intelligent Cardiac Risk Assessment System</p>
+        <p style="margin-top: 0.5rem; font-size: 0.8rem; color: #6b7280;">
+            ⚠️ This tool is for educational purposes only. Always consult qualified healthcare professionals for medical advice.
         </p>
     </div>
     """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # === MAIN APP ===
 if st.session_state.token:

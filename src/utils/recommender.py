@@ -6,7 +6,7 @@ class HeartRecommender:
     def __init__(self):
         # Load the advice database
         # We look for the file relative to the project root or data path
-        db_path = os.path.join(settings.DATA_PATH, "advice_db.json")
+        db_path = os.path.join(settings.DATA_PATH, "raw", "advice_db.json")
         
         try:
             with open(db_path, 'r', encoding='utf-8') as f:

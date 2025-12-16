@@ -11,6 +11,7 @@ services:
       - WEATHER_API_KEY=${WEATHER_API_KEY}
     volumes:
       - ./src/data:/app/src/data:ro          # Mount data folder (read-only)
+      - ./src/models:/app/src/models:ro      # Mount models folder (picks up retrained models)
       - sqlite_data:/app/data                 # Persist SQLite database
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
