@@ -41,7 +41,7 @@ jobs:
         files: ./coverage.xml
         fail_ci_if_error: false
 
-  # ========== JOB 2: BUILD DOCKER (NO PUSH FOR DRY RUN) ==========
+  # ========== JOB 2: BUILD & PUSH DOCKER ==========
   build:
     runs-on: ubuntu-latest
     needs: test
@@ -61,7 +61,7 @@ jobs:
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
-        password: ${{ secrets.GHCR_PAT }}  # your GitHub PAT stored as secret
+        password: ${{ secrets.GHCR_PAT }}
     
     - name: Extract metadata for API
       id: meta-api
@@ -73,12 +73,12 @@ jobs:
           type=sha,prefix=
           type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
     
-    - name: Build API image (DRY RUN)
+    - name: Build and Push API image
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile
-        push: false   # ← disabled for dry run
+        push: true
         tags: ${{ steps.meta-api.outputs.tags }}
         labels: ${{ steps.meta-api.outputs.labels }}
         cache-from: type=gha
@@ -94,12 +94,12 @@ jobs:
           type=sha,prefix=
           type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
     
-    - name: Build Frontend image (DRY RUN)
+    - name: Build and Push Frontend image
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
         file: ./frontend/Dockerfile
-        push: false   # ← disabled for dry run
+        push: true
         tags: ${{ steps.meta-frontend.outputs.tags }}
         labels: ${{ steps.meta-frontend.outputs.labels }}
         cache-from: type=gha
